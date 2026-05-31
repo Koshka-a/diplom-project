@@ -1,0 +1,36 @@
+# --- Python / Backend ---
+backend/.venv/
+backend/venv/
+backend/.pytest_cache/
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/*.db
+backend/workplace.db
+
+# --- Frontend / Node.js ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# --- IDE / Editors ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- Operating System ---
+.DS_Store
+Thumbs.db
+
+# --- Environment Variables ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
