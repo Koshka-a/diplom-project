@@ -1,62 +1,90 @@
-import { BrowserRouter as Router, Routes, Route, Link, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Database, Network, Zap, Menu } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { api } from './api/client';
 import DashboardPage from './pages/DashboardPage';
 import ArtifactsPage from './pages/ArtifactsPage';
 import GraphPage from './pages/GraphPage';
 import ImpactPage from './pages/ImpactPage';
+import ArtifactCardPage from './pages/ArtifactCardPage';
 
-function Sidebar() {
+function AppLayout({ children }: { children: React.ReactNode }) {
   const { projectId } = useParams();
+  const navigate = useNavigate();
+  const [project, setProject] = useState<any>(null);
+
+  useEffect(() => {
+    if (projectId) {
+      api.getProject(projectId).then(setProject).catch(console.error);
+    }
+  }, [projectId]);
   
   if (!projectId) return null;
 
-  return (
-    <div className="sidebar">
-      <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>W</div>
-        <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Workplace</h2>
-      </div>
-      
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <Link to={`/projects/${projectId}`} className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}><LayoutDashboard size={18} /> Дашборд</Link>
-        <Link to={`/projects/${projectId}/artifacts`} className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}><Database size={18} /> Артефакты</Link>
-        <Link to={`/projects/${projectId}/graph`} className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}><Network size={18} /> Онтология / Граф</Link>
-        <Link to={`/projects/${projectId}/impact`} className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}><Zap size={18} /> Анализ влияния</Link>
-        <Link to="/" className="btn btn-secondary" style={{ justifyContent: 'flex-start', marginTop: 'auto' }}><Menu size={18} /> Все проекты</Link>
-      </nav>
-    </div>
-  );
-}
+  const handleDeleteProject = async () => {
+    if (window.confirm('Вы точно хотите удалить этот проект и все его артефакты? Это действие необратимо.')) {
+      try {
+        await api.deleteProject(projectId);
+        navigate('/');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
 
-function ProjectLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="app-container">
-      <Sidebar />
-      <div className="main-content">
-        {children}
-      </div>
+    <div className="layout">
+      <aside className="sidebar">
+        <div className="logo">
+          <Database className="icon" />
+          <span>Workplace</span>
+        </div>
+        <nav className="nav-menu">
+          <Link to={`/project/${projectId}`} className="nav-item">
+            <LayoutDashboard size={20} />
+            Дашборд
+          </Link>
+          <Link to={`/project/${projectId}/artifacts`} className="nav-item">
+            <Database size={20} />
+            Артефакты
+          </Link>
+          <Link to={`/project/${projectId}/graph`} className="nav-item">
+            <Network size={20} />
+            Онтология
+          </Link>
+          <Link to={`/project/${projectId}/impact`} className="nav-item">
+            <Zap size={20} />
+            Анализ влияния
+          </Link>
+        </nav>
+      </aside>
+      <main className="main-content">
+        <header className="header">
+          <div className="header-title">
+            <Menu size={24} />
+            <h1>{project ? project.name : `Проект ${projectId}`}</h1>
+          </div>
+          <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
+            <button onClick={handleDeleteProject} className="btn-outline" style={{borderColor: '#ff4d4f', color: '#ff4d4f'}}>
+              Удалить проект
+            </button>
+            <Link to="/" className="btn-outline" style={{textDecoration: 'none'}}>
+              Выйти из проекта
+            </Link>
+          </div>
+        </header>
+        <div className="page-container">
+          {children}
+        </div>
+      </main>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<ProjectList />} />
-        <Route path="/projects/:projectId" element={<ProjectLayout><DashboardPage /></ProjectLayout>} />
-        <Route path="/projects/:projectId/artifacts" element={<ProjectLayout><ArtifactsPage /></ProjectLayout>} />
-        <Route path="/projects/:projectId/graph" element={<ProjectLayout><GraphPage /></ProjectLayout>} />
-        <Route path="/projects/:projectId/impact" element={<ProjectLayout><ImpactPage /></ProjectLayout>} />
-      </Routes>
-    </Router>
   );
 }
 
 function ProjectList() {
   const [projects, setProjects] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getProjects().then(setProjects).catch(console.error);
@@ -65,31 +93,67 @@ function ProjectList() {
   const handleLoadDemo = async () => {
     try {
       const res = await api.loadDemo();
-      window.location.href = `/projects/${res.project_id}`;
+      navigate(`/project/${res.project_id}`);
     } catch (e) {
       console.error(e);
     }
   };
 
+  const handleCreateProject = async () => {
+    const name = prompt("Введите имя нового проекта:");
+    if (name) {
+      try {
+        const p = await api.createProject({name, description: ''});
+        navigate(`/project/${p.id}`);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   return (
-    <div className="app-container" style={{ justifyContent: 'center', alignItems: 'center', background: 'var(--bg-primary)' }}>
+    <div className="app-container" style={{ justifyContent: 'center', alignItems: 'center', background: 'var(--bg-primary)', height: '100vh', display: 'flex' }}>
       <div className="glass-card" style={{ width: 600, textAlign: 'center' }}>
         <h1 style={{ marginBottom: '1rem' }}>Управление проектами</h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Выберите проект или загрузите демо-данные</p>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Выберите проект или создайте новый</p>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem', maxHeight: '300px', overflowY: 'auto' }}>
           {projects.map((p: any) => (
-            <Link key={p.id} to={`/projects/${p.id}`} className="btn btn-secondary" style={{ justifyContent: 'space-between', padding: '1rem' }}>
+            <Link key={p.id} to={`/project/${p.id}`} className="btn btn-secondary" style={{ justifyContent: 'space-between', padding: '1rem', textDecoration: 'none' }}>
               <span style={{ fontWeight: 600 }}>{p.name}</span>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(p.created_at).toLocaleDateString()}</span>
             </Link>
           ))}
+          {projects.length === 0 && <div style={{ color: 'var(--text-muted)' }}>Нет доступных проектов</div>}
         </div>
 
-        <button onClick={handleLoadDemo} className="btn btn-primary" style={{ width: '100%', padding: '1rem' }}>
-          <Zap size={18} /> Загрузить демо-проект
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleCreateProject} className="btn btn-primary" style={{ flex: 1, padding: '1rem' }}>
+            + Создать проект
+          </button>
+          <button onClick={handleLoadDemo} className="btn btn-secondary" style={{ flex: 1, padding: '1rem' }}>
+            <Zap size={18} /> Демо-данные
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      <Toaster position="top-right" />
+      <Router>
+        <Routes>
+          <Route path="/" element={<ProjectList />} />
+          <Route path="/project/:projectId" element={<AppLayout><DashboardPage /></AppLayout>} />
+          <Route path="/project/:projectId/artifacts" element={<AppLayout><ArtifactsPage /></AppLayout>} />
+          <Route path="/project/:projectId/artifact/:artifactId" element={<AppLayout><ArtifactCardPage /></AppLayout>} />
+          <Route path="/project/:projectId/graph" element={<AppLayout><GraphPage /></AppLayout>} />
+          <Route path="/project/:projectId/impact" element={<AppLayout><ImpactPage /></AppLayout>} />
+        </Routes>
+      </Router>
+    </>
   );
 }

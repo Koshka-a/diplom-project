@@ -1,15 +1,153 @@
-# --- Python / Backend ---
-backend/.venv/
-backend/venv/
-backend/.pytest_cache/
-backend/__pycache__/
-backend/*.pyc
-backend/*.pyo
-backend/*.pyd
-backend/*.db
-backend/workplace.db
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-# --- Frontend / Node.js ---
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nosexyproject
+.noseids
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.stats
+.phpunit.result.cache
+
+# Translations
+*.mo
+*.gmo
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to share your .python-version.
+#   For an app, this is usually fine to prevent conflicts.
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if used with a dependency tool, lock files are useful.
+#Pipfile.lock
+
+# poetry
+#   Similar to Pipfile.lock, poetry.lock is database/dependency-lock.
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, pdm.lock is database/dependency-lock.
+#pdm.lock
+
+# PEP 582; project local imports without virtual environments
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# --- Backend Database and Extra ---
+*.db
+backend/workplace.db
+backend/.pytest_cache/
+
+# --- Node / Frontend ---
+node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
@@ -27,10 +165,3 @@ frontend/*.local
 # --- Operating System ---
 .DS_Store
 Thumbs.db
-
-# --- Environment Variables ---
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local

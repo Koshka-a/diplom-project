@@ -21,6 +21,19 @@ def update_artifact(artifact_id: str, artifact: schemas.ArtifactUpdate, db: Sess
     if not db_artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
     
+    if artifact.type_id is not None:
+        type_exists = db.query(models.ArtifactType).filter(models.ArtifactType.code == artifact.type_id).first()
+        if not type_exists:
+            raise HTTPException(status_code=400, detail="Invalid artifact type_id")
+
+    if artifact.code is not None and artifact.code != db_artifact.code:
+        code_exists = db.query(models.Artifact).filter(
+            models.Artifact.project_id == db_artifact.project_id, 
+            models.Artifact.code == artifact.code
+        ).first()
+        if code_exists:
+            raise HTTPException(status_code=400, detail="Artifact with this code already exists in the project")
+            
     update_data = artifact.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_artifact, key, value)
@@ -34,6 +47,12 @@ def delete_artifact(artifact_id: str, db: Session = Depends(get_db)):
     db_artifact = db.query(models.Artifact).filter(models.Artifact.id == artifact_id).first()
     if not db_artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
+    # Delete relations
+    db.query(models.ArtifactRelation).filter(
+        (models.ArtifactRelation.source_artifact_id == artifact_id) | 
+        (models.ArtifactRelation.target_artifact_id == artifact_id)
+    ).delete(synchronize_session=False)
+
     db.delete(db_artifact)
     db.commit()
     return {"message": "Artifact deleted"}

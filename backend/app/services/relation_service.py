@@ -31,6 +31,11 @@ def check_cycles(db: Session, project_id: str, source_id: str, target_id: str, r
                 queue.append(rel.target_artifact_id)
 
 def create_relation(db: Session, project_id: str, relation: schemas.RelationCreate):
+    # Check if relation type exists
+    rel_type = db.query(models.RelationType).filter(models.RelationType.code == relation.relation_type_id).first()
+    if not rel_type:
+        raise HTTPException(status_code=400, detail="Invalid relation type")
+
     # Check if source and target exist
     source = db.query(models.Artifact).filter(models.Artifact.id == relation.source_artifact_id, models.Artifact.project_id == project_id).first()
     target = db.query(models.Artifact).filter(models.Artifact.id == relation.target_artifact_id, models.Artifact.project_id == project_id).first()
@@ -40,6 +45,16 @@ def create_relation(db: Session, project_id: str, relation: schemas.RelationCrea
 
     if source.id == target.id:
         raise HTTPException(status_code=400, detail="Связь с самим собой запрещена")
+
+    # Check for exact duplicate
+    duplicate = db.query(models.ArtifactRelation).filter(
+        models.ArtifactRelation.project_id == project_id,
+        models.ArtifactRelation.source_artifact_id == source.id,
+        models.ArtifactRelation.target_artifact_id == target.id,
+        models.ArtifactRelation.relation_type_id == relation.relation_type_id
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=400, detail="Такая связь уже существует")
 
     check_cycles(db, project_id, relation.source_artifact_id, relation.target_artifact_id, relation.relation_type_id)
 

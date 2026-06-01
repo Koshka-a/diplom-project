@@ -62,4 +62,30 @@ def load_demo_data(db: Session = Depends(get_db)):
     
     db.commit()
 
+    # Add code fragments to make the editor look nice
+    code_snippets = {
+        "ENT-001": "class User:\n    id: int\n    username: str\n    email: str",
+        "ENT-002": "class Account:\n    user_id: int\n    hashed_password: str",
+        "ENT-003": "class Session:\n    token: str\n    expires_at: datetime",
+        "REQ-001": "# REQUIREMENT: The user must be able to authorize using email and password.",
+        "REQ-002": "# REQUIREMENT: The system must store active sessions for 24 hours.",
+        "MOD-001": "module Auth {\n  export function login() {}\n  export function logout() {}\n}",
+        "FILE-001": "import hashlib\n\ndef check_password(plain, hashed):\n    return hashlib.sha256(plain.encode()).hexdigest() == hashed",
+        "FUNC-001": "def login_user(email: str, password: str):\n    user = db.get_user(email)\n    if check_password(password, user.hashed_password):\n        return create_session(user.id)",
+        "TEST-001": "def test_login():\n    token = login_user('test@test.com', 'password123')\n    assert token is not None",
+        "DOC-001": "# Authorization Flow\n1. User enters email/pwd\n2. System hashes pwd\n3. System checks DB\n4. System returns token",
+    }
+
+    for code, content in code_snippets.items():
+        art_id = artifact_map.get(code)
+        if art_id:
+            cf = models.CodeFragment(
+                artifact_id=art_id,
+                content=content,
+                language="python" if "def " in content or "class " in content else "markdown",
+                file_path=f"{code.lower()}.py"
+            )
+            db.add(cf)
+    db.commit()
+
     return {"message": "Demo data loaded", "project_id": project_id}

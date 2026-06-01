@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, JSON, ForeignKey, Integer, Float, Boolean
+from sqlalchemy import Column, String, DateTime, Text, JSON, ForeignKey, Integer, Float, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 import datetime
 import uuid
@@ -33,6 +33,7 @@ class ArtifactType(Base):
 
 class Artifact(Base):
     __tablename__ = "artifacts"
+    __table_args__ = (UniqueConstraint('project_id', 'code', name='uix_project_code'),)
 
     id = Column(String, primary_key=True, default=generate_uuid)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
@@ -42,7 +43,7 @@ class Artifact(Base):
     description = Column(Text, nullable=True)
     status = Column(String, nullable=True)
     priority = Column(String, nullable=True)
-    metadata_json = Column(JSON, nullable=True, default={})
+    metadata_json = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

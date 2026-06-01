@@ -18,6 +18,19 @@ def create_project_artifact(project_id: str, artifact: schemas.ArtifactCreate, d
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not db_project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Validate type_id
+    type_exists = db.query(models.ArtifactType).filter(models.ArtifactType.code == artifact.type_id).first()
+    if not type_exists:
+        raise HTTPException(status_code=400, detail="Invalid artifact type_id")
+
+    # Validate unique code
+    code_exists = db.query(models.Artifact).filter(
+        models.Artifact.project_id == project_id, 
+        models.Artifact.code == artifact.code
+    ).first()
+    if code_exists:
+        raise HTTPException(status_code=400, detail="Artifact with this code already exists in the project")
         
     db_artifact = models.Artifact(**artifact.model_dump(), project_id=project_id)
     db.add(db_artifact)
