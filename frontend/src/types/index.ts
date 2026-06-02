@@ -33,7 +33,7 @@ export interface Artifact {
   description?: string;
   status?: string;
   priority?: string;
-  metadata_json?: Record<string, any>;
+  metadata_json?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -63,7 +63,7 @@ export interface CodeFragment {
 export interface GraphNode {
   id: string;
   type: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   position: { x: number; y: number };
 }
 

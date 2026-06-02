@@ -1,3 +1,10 @@
+ 
+ 
+ 
+ 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactFlow, { 
@@ -21,7 +28,8 @@ const typeColors: Record<string, string> = {
   TestCase: '#eab308', // yellow
   Document: '#0ea5e9', // cyan
   Defect: '#ef4444', // red
-  Decision: '#f97316' // orange
+  Decision: '#f97316', // orange
+  ChangeRequest: '#d946ef' // fuchsia
 };
 
 const dagreGraph = new dagre.graphlib.Graph();
@@ -64,6 +72,9 @@ export default function GraphPage() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const highlightCode = searchParams.get('highlight');
+  const sourceCode = searchParams.get('source');
+  const impactCodesStr = searchParams.get('impact');
+  const impactCodes = impactCodesStr ? new Set(impactCodesStr.split(',')) : new Set();
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -71,6 +82,8 @@ export default function GraphPage() {
   
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [allTypes, setAllTypes] = useState<string[]>([]);
+  const [filterRelTypes, setFilterRelTypes] = useState<string[]>([]);
+  const [allRelTypes, setAllRelTypes] = useState<string[]>([]);
   const [rawData, setRawData] = useState<{nodes: any[], edges: any[]} | null>(null);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
@@ -86,6 +99,11 @@ export default function GraphPage() {
       const types = Array.from(new Set(data.nodes.map((n:any) => n.data.type))) as string[];
       setAllTypes(types);
       setFilterTypes(types); // show all by default
+      
+      const relTypes = Array.from(new Set(data.edges.map((e:any) => e.type))) as string[];
+      setAllRelTypes(relTypes);
+      setFilterRelTypes(relTypes);
+      
       setLoading(false);
     }).catch(console.error);
   }, [projectId]);
@@ -95,11 +113,36 @@ export default function GraphPage() {
     
     const filteredNodes = rawData.nodes.filter((n:any) => filterTypes.includes(n.data.type));
     const filteredNodeIds = new Set(filteredNodes.map((n:any) => n.id));
-    const filteredEdges = rawData.edges.filter((e:any) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target));
+    const filteredEdges = rawData.edges.filter((e:any) => 
+      filteredNodeIds.has(e.source) && 
+      filteredNodeIds.has(e.target) &&
+      filterRelTypes.includes(e.type)
+    );
 
     const rfNodes = filteredNodes.map((n:any) => {
       const isHighlighted = highlightCode && n.data.label.startsWith(highlightCode);
+      const isSource = sourceCode && n.data.label.startsWith(sourceCode);
+      const isImpact = Array.from(impactCodes).some(code => n.data.label.startsWith(code as string));
+      
       const bgColor = typeColors[n.data.type] || 'var(--bg-secondary)';
+      
+      let border = '1px solid rgba(255,255,255,0.2)';
+      let boxShadow = 'var(--shadow-sm)';
+      let fontWeight = 'normal';
+      
+      if (isSource) {
+        border = '3px solid var(--warning)';
+        boxShadow = '0 0 15px var(--warning)';
+        fontWeight = 'bold';
+      } else if (isImpact) {
+        border = '3px solid var(--danger)';
+        boxShadow = '0 0 15px var(--danger)';
+        fontWeight = 'bold';
+      } else if (isHighlighted) {
+        border = '3px solid var(--primary)';
+        boxShadow = '0 0 15px var(--primary)';
+        fontWeight = 'bold';
+      }
       
       return {
         id: n.id,
@@ -108,32 +151,53 @@ export default function GraphPage() {
         style: { 
           background: isHighlighted ? 'var(--highlight-bg)' : bgColor,
           color: '#fff', 
-          border: isHighlighted ? '3px solid var(--primary)' : '1px solid rgba(255,255,255,0.2)',
+          border,
           borderRadius: '8px',
           padding: '10px',
           width: nodeWidth,
           textAlign: 'center' as const,
-          boxShadow: isHighlighted ? '0 0 15px var(--primary)' : 'var(--shadow-sm)',
+          boxShadow,
           fontSize: '12px',
-          fontWeight: isHighlighted ? 'bold' : 'normal'
+          fontWeight
         }
       };
     });
 
-    const rfEdges = filteredEdges.map((e:any) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: e.label,
-      type: e.type,
-      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-secondary)' },
-      style: { stroke: 'var(--text-secondary)' }
-    }));
+    const rfEdges = filteredEdges.map((e:any) => {
+      const sourceNode = filteredNodes.find((n:any) => n.id === e.source);
+      const targetNode = filteredNodes.find((n:any) => n.id === e.target);
+      
+      const isSourceNodeHighlighted = sourceNode && (
+        (sourceCode && sourceNode.data.label.startsWith(sourceCode)) || 
+        Array.from(impactCodes).some(code => sourceNode.data.label.startsWith(code as string))
+      );
+      
+      const isTargetNodeHighlighted = targetNode && (
+        (sourceCode && targetNode.data.label.startsWith(sourceCode)) || 
+        Array.from(impactCodes).some(code => targetNode.data.label.startsWith(code as string))
+      );
+      
+      const isImpactPath = isSourceNodeHighlighted && isTargetNodeHighlighted;
+      
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        type: e.type,
+        markerEnd: { type: MarkerType.ArrowClosed, color: isImpactPath ? 'var(--danger)' : 'var(--text-secondary)' },
+        style: { 
+          stroke: isImpactPath ? 'var(--danger)' : 'var(--text-secondary)',
+          strokeWidth: isImpactPath ? 2 : 1
+        },
+        animated: isImpactPath
+      };
+    });
 
     const layouted = getLayoutedElements(rfNodes, rfEdges, 'TB');
     setNodes([...layouted.nodes]);
     setEdges([...layouted.edges]);
-  }, [rawData, filterTypes, highlightCode, setNodes, setEdges]);
+  }, [rawData, filterTypes, filterRelTypes, highlightCode, sourceCode, impactCodesStr, setNodes, setEdges]);
 
   useEffect(() => {
     loadGraph();
@@ -159,22 +223,42 @@ export default function GraphPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <Filter size={16} color="var(--text-secondary)" />
-        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Фильтры типов:</span>
-        {allTypes.map(type => (
-          <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer', background: typeColors[type] || 'var(--bg-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#fff' }}>
-            <input 
-              type="checkbox" 
-              checked={filterTypes.includes(type)}
-              onChange={(e) => {
-                if (e.target.checked) setFilterTypes(prev => [...prev, type]);
-                else setFilterTypes(prev => prev.filter(t => t !== type));
-              }}
-            />
-            {type}
-          </label>
-        ))}
+      <div style={{ padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <Filter size={16} color="var(--text-secondary)" />
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginRight: '1rem' }}>Типы артефактов (Легенда):</span>
+          {allTypes.map(type => (
+            <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer', background: typeColors[type] || 'var(--bg-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#fff' }}>
+              <input 
+                type="checkbox" 
+                checked={filterTypes.includes(type)}
+                onChange={(e) => {
+                  if (e.target.checked) setFilterTypes(prev => [...prev, type]);
+                  else setFilterTypes(prev => prev.filter(t => t !== type));
+                }}
+              />
+              {type}
+            </label>
+          ))}
+        </div>
+        
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <Filter size={16} color="var(--text-secondary)" />
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginRight: '1rem' }}>Типы связей:</span>
+          {allRelTypes.map(type => (
+            <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer', background: 'var(--bg-tertiary)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#ccc' }}>
+              <input 
+                type="checkbox" 
+                checked={filterRelTypes.includes(type)}
+                onChange={(e) => {
+                  if (e.target.checked) setFilterRelTypes(prev => [...prev, type]);
+                  else setFilterRelTypes(prev => prev.filter(t => t !== type));
+                }}
+              />
+              {type}
+            </label>
+          ))}
+        </div>
       </div>
       
       {loading ? (

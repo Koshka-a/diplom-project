@@ -1,12 +1,26 @@
+ 
+ 
+/* eslint-disable react-hooks/set-state-in-effect */
+ 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { History, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+interface ChangeLogEntry {
+  id: string;
+  created_at: string;
+  operation: string;
+  entity_type: string;
+  entity_id: string;
+  old_value_json?: Record<string, any>;
+  new_value_json?: Record<string, any>;
+}
+
 export default function ChangelogPage() {
   const { projectId } = useParams();
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<ChangeLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [entityType, setEntityType] = useState<string>('');
@@ -33,7 +47,7 @@ export default function ChangelogPage() {
     loadChangelog();
   }, [loadChangelog]);
 
-  const renderChanges = (oldVal: any, newVal: any) => {
+  const renderChanges = (oldVal: unknown, newVal: unknown) => {
     if (!oldVal && !newVal) return <span style={{ color: 'var(--text-muted)' }}>Нет данных</span>;
     if (oldVal && newVal) {
       // UPDATE
@@ -59,6 +73,7 @@ export default function ChangelogPage() {
     UPDATE: '#f59e0b',
     DELETE: '#ef4444',
     IMPORT: '#3b82f6',
+    EXPORT: '#8b5cf6',
   };
 
   return (
@@ -95,6 +110,7 @@ export default function ChangelogPage() {
           <option value="UPDATE">UPDATE</option>
           <option value="DELETE">DELETE</option>
           <option value="IMPORT">IMPORT</option>
+          <option value="EXPORT">EXPORT</option>
         </select>
       </div>
 
@@ -134,7 +150,13 @@ export default function ChangelogPage() {
                   </td>
                   <td>{log.entity_type}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                    {log.entity_id.split('-')[0]}...
+                    {log.entity_type === 'Artifact' && (log.new_value_json?.code || log.old_value_json?.code) ? (
+                      `${log.new_value_json?.code || log.old_value_json?.code} / Artifact`
+                    ) : log.entity_type === 'Relation' && (log.new_value_json?.source || log.old_value_json?.source) && (log.new_value_json?.target || log.old_value_json?.target) ? (
+                      `${log.new_value_json?.source || log.old_value_json?.source} --[${log.new_value_json?.type || log.old_value_json?.type}]--> ${log.new_value_json?.target || log.old_value_json?.target}`
+                    ) : (
+                      `${log.entity_id.split('-')[0]}...`
+                    )}
                   </td>
                   <td>
                     {renderChanges(log.old_value_json, log.new_value_json)}

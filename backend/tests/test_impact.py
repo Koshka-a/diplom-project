@@ -105,3 +105,25 @@ def test_artifact_deletion_cascade():
     assert impact_resp.status_code == 200
     impacted_codes = [item["artifact"]["code"] for item in impact_resp.json()["items"]]
     assert "REQ-001" not in impacted_codes, "Deleted artifact should not appear in impact"
+
+def test_invalid_relation_type():
+    # Load demo data
+    response = client.post("/demo/load")
+    project_id = response.json()["project_id"]
+
+    # Get artifacts
+    artifacts = client.get(f"/projects/{project_id}/artifacts/").json()
+    file_art = next(a for a in artifacts if a["type_id"] == "File")
+    module_art = next(a for a in artifacts if a["type_id"] == "Module")
+    
+    # Try to create File describes Module
+    # describes only allows Document as source
+    rel_response = client.post(f"/projects/{project_id}/relations", json={
+        "source_artifact_id": file_art["id"],
+        "target_artifact_id": module_art["id"],
+        "relation_type_id": "describes",
+        "weight": 1.0
+    })
+    
+    assert rel_response.status_code == 400
+    assert "Связь" not in rel_response.json()["detail"] or "не поддерживает" in rel_response.json()["detail"]

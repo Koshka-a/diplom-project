@@ -38,7 +38,7 @@ def export_json(project_id: str, db: Session = Depends(get_db)):
                 "description": a.description,
                 "status": a.status,
                 "priority": a.priority,
-                "metadata": a.metadata_json
+                "metadata_json": a.metadata_json
             } for a in artifacts
         ],
         "relations": [
@@ -57,6 +57,7 @@ def export_json(project_id: str, db: Session = Depends(get_db)):
     # Record export
     db.add(models.ExportRecord(project_id=project_id, format="json", file_name=f"project_{project_id}.json"))
     db.commit()
+    log_change(db, project_id, "Project", project_id, "EXPORT", None, {"format": "json"})
     
     return data
 
@@ -102,6 +103,7 @@ def export_turtle(project_id: str, db: Session = Depends(get_db)):
     # Record export
     db.add(models.ExportRecord(project_id=project_id, format="turtle", file_name=f"project_{project_id}.ttl"))
     db.commit()
+    log_change(db, project_id, "Project", project_id, "EXPORT", None, {"format": "turtle"})
 
     return g.serialize(format="turtle")
 
@@ -115,6 +117,24 @@ def import_json(file: UploadFile = File(...), db: Session = Depends(get_db)):
         
     if "project" not in data or "artifacts" not in data:
         raise HTTPException(status_code=400, detail="JSON structure invalid")
+        
+    # Validations
+    type_codes = {t.code for t in db.query(models.ArtifactType).all()}
+    rel_type_codes = {t.code for t in db.query(models.RelationType).all()}
+    
+    seen_codes = set()
+    for a_data in data.get("artifacts", []):
+        if a_data.get("type_id") not in type_codes:
+            raise HTTPException(status_code=400, detail=f"Invalid artifact type_id: {a_data.get('type_id')}")
+        if a_data.get("code") in seen_codes:
+            raise HTTPException(status_code=400, detail=f"Duplicate artifact code in import: {a_data.get('code')}")
+        seen_codes.add(a_data.get("code"))
+        
+    for r_data in data.get("relations", []):
+        if r_data.get("relation_type_id") not in rel_type_codes:
+            raise HTTPException(status_code=400, detail=f"Invalid relation_type_id: {r_data.get('relation_type_id')}")
+        if not r_data.get("source_artifact_id") or not r_data.get("target_artifact_id"):
+             raise HTTPException(status_code=400, detail="Relation missing source or target artifact")
         
     # Create project
     proj_data = data["project"]
@@ -143,9 +163,12 @@ def import_json(file: UploadFile = File(...), db: Session = Depends(get_db)):
         r_data["source_artifact_id"] = artifact_id_map.get(r_data.get("source_artifact_id"))
         r_data["target_artifact_id"] = artifact_id_map.get(r_data.get("target_artifact_id"))
         
-        if r_data["source_artifact_id"] and r_data["target_artifact_id"]:
+        if r_data.get("source_artifact_id") and r_data.get("target_artifact_id"):
             db_r = models.ArtifactRelation(**r_data)
             db.add(db_r)
+        else:
+            # If the original ID couldn't be mapped
+            raise HTTPException(status_code=400, detail="Relation references unknown artifact ID")
     
     db.commit()
     

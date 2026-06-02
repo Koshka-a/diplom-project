@@ -26,9 +26,15 @@ def delete_relation(relation_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Relation not found")
     project_id = db_relation.project_id
     rel_type = db_relation.relation_type_id
+    
+    source_art = db.query(models.Artifact).filter(models.Artifact.id == db_relation.source_artifact_id).first()
+    target_art = db.query(models.Artifact).filter(models.Artifact.id == db_relation.target_artifact_id).first()
+    source_code = source_art.code if source_art else "Unknown"
+    target_code = target_art.code if target_art else "Unknown"
+    
     db.delete(db_relation)
     db.commit()
-    log_change(db, project_id, "Relation", relation_id, "DELETE", {"type": rel_type}, None)
+    log_change(db, project_id, "Relation", relation_id, "DELETE", {"type": rel_type, "source": source_code, "target": target_code}, None)
     return {"message": "Relation deleted"}
 
 @router.get("/relation-types", response_model=List[schemas.RelationTypeResponse])

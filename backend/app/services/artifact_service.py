@@ -79,9 +79,15 @@ def delete_artifact(db: Session, artifact_id: str):
     for rel in relations_to_delete:
         rel_id = rel.id
         rel_type = rel.relation_type_id
+        
+        source_art = db.query(models.Artifact).filter(models.Artifact.id == rel.source_artifact_id).first()
+        target_art = db.query(models.Artifact).filter(models.Artifact.id == rel.target_artifact_id).first()
+        source_code = source_art.code if source_art else "Unknown"
+        target_code = target_art.code if target_art else "Unknown"
+        
         db.delete(rel)
         # Логируем удаление связи, чтобы история была полной
-        log_change(db, project_id, "Relation", rel_id, "DELETE", {"type": rel_type}, None)
+        log_change(db, project_id, "Relation", rel_id, "DELETE", {"type": rel_type, "source": source_code, "target": target_code}, None)
         
     db.delete(db_artifact)
     db.commit()

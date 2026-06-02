@@ -17,8 +17,7 @@ class ProjectResponse(ProjectBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ArtifactTypeResponse(BaseModel):
     code: str
@@ -28,8 +27,7 @@ class ArtifactTypeResponse(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RelationTypeResponse(BaseModel):
     code: str
@@ -41,8 +39,7 @@ class RelationTypeResponse(BaseModel):
     target_types_json: Optional[List[str]] = None
     color: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ArtifactBase(BaseModel):
     type_id: str
@@ -67,8 +64,7 @@ class ArtifactResponse(ArtifactBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RelationBase(BaseModel):
     source_artifact_id: str
@@ -86,8 +82,7 @@ class RelationResponse(RelationBase):
     project_id: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class CodeFragmentBase(BaseModel):
     language: Optional[str] = None
@@ -108,8 +103,7 @@ class CodeFragmentResponse(CodeFragmentBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class GraphNode(BaseModel):
     id: str

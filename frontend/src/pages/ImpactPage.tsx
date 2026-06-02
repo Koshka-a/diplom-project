@@ -1,3 +1,7 @@
+ 
+ 
+ 
+ 
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -106,9 +110,20 @@ export default function ImpactPage() {
 
         {impactResult && (
           <div className="glass-card">
-            <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
-              Результаты для {impactResult.source.code}: {impactResult.source.title}
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
+                Результаты для {impactResult.source.code}: {impactResult.source.title}
+              </h3>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  const impactCodes = impactResult.items.map(i => i.artifact.code).join(',');
+                  navigate(`/project/${projectId}/graph?source=${impactResult.source.code}&impact=${impactCodes}`);
+                }}
+              >
+                Показать все влияние на графе
+              </button>
+            </div>
             
             {impactResult.items.length === 0 ? (
               <p style={{ color: 'var(--text-muted)' }}>Затронутых элементов не найдено.</p>

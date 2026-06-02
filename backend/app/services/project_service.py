@@ -23,7 +23,20 @@ def get_project(db: Session, project_id: str):
 
 def delete_project(db: Session, project_id: str):
     db_project = get_project(db, project_id)
-    project_name = db_project.name
+    
+    # Явное удаление зависимых сущностей
+    db.query(models.ChangeLog).filter(models.ChangeLog.project_id == project_id).delete(synchronize_session=False)
+    db.query(models.ExportRecord).filter(models.ExportRecord.project_id == project_id).delete(synchronize_session=False)
+    db.query(models.ArtifactRelation).filter(models.ArtifactRelation.project_id == project_id).delete(synchronize_session=False)
+    
+    db.query(models.CodeFragment).filter(
+        models.CodeFragment.artifact_id.in_(
+            db.query(models.Artifact.id).filter(models.Artifact.project_id == project_id)
+        )
+    ).delete(synchronize_session=False)
+    
+    db.query(models.Artifact).filter(models.Artifact.project_id == project_id).delete(synchronize_session=False)
+    
     db.delete(db_project)
     db.commit()
     # It's hard to log change to a deleted project since it cascades, but we'll log it if needed. 
