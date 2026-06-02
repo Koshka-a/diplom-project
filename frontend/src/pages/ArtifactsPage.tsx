@@ -10,6 +10,10 @@ export default function ArtifactsPage() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [types, setTypes] = useState<ArtifactType[]>([]);
   
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('');
+  
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -77,8 +81,29 @@ export default function ArtifactsPage() {
 
   return (
     <div className="glass-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <h2>Реестр артефактов</h2>
+        
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flex: 1, justifyContent: 'center' }}>
+          <input 
+            type="text" 
+            placeholder="Поиск по коду или названию..." 
+            className="input" 
+            style={{ minWidth: '300px', marginBottom: 0 }}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          <select 
+            className="input" 
+            style={{ width: '150px', marginBottom: 0 }}
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+          >
+            <option value="">Все типы</option>
+            {types.map(t => <option key={t.code} value={t.code}>{t.name}</option>)}
+          </select>
+        </div>
+
         <button className="btn-primary" onClick={openCreateModal}>
           <Plus size={18} /> Создать
         </button>
@@ -96,7 +121,10 @@ export default function ArtifactsPage() {
             </tr>
           </thead>
           <tbody>
-            {artifacts.map(a => {
+            {artifacts
+              .filter(a => filterType ? a.type_id === filterType : true)
+              .filter(a => searchQuery ? (a.code.toLowerCase().includes(searchQuery.toLowerCase()) || a.title.toLowerCase().includes(searchQuery.toLowerCase())) : true)
+              .map(a => {
               const t = types.find(type => type.code === a.type_id);
               return (
                 <tr key={a.id}>
@@ -140,8 +168,8 @@ export default function ArtifactsPage() {
             <h3>{editingId ? 'Редактировать артефакт' : 'Создать артефакт'}</h3>
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
               <div>
-                <label style={{display: 'block', marginBottom: 5}}>Код (уникальный)</label>
-                <input required type="text" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} style={{width: '100%', padding: 8, borderRadius: 4, border: '1px solid #444', background: '#222', color: 'white'}} />
+                <label style={{display: 'block', marginBottom: 5}}>Код (например REQ-001)</label>
+                <input required pattern="^[A-Z]+-[0-9]+$" title="Формат кода: ЗАГЛАВНЫЕ-ЦЫФРЫ (например: REQ-001)" type="text" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})} style={{width: '100%', padding: 8, borderRadius: 4, border: '1px solid #444', background: '#222', color: 'white'}} />
               </div>
               <div>
                 <label style={{display: 'block', marginBottom: 5}}>Название</label>

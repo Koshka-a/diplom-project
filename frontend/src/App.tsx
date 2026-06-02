@@ -99,16 +99,38 @@ function ProjectList() {
     }
   };
 
-  const handleCreateProject = async () => {
-    const name = prompt("Введите имя нового проекта:");
-    if (name) {
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDesc, setNewProjectDesc] = useState('');
+
+  const handleCreateProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newProjectName) {
       try {
-        const p = await api.createProject({name, description: ''});
+        const p = await api.createProject({name: newProjectName, description: newProjectDesc});
+        setShowProjectModal(false);
         navigate(`/project/${p.id}`);
-      } catch (e) {
-        console.error(e);
+      } catch (e: any) {
+        toast.error(e.response?.data?.detail || 'Ошибка создания проекта');
       }
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      toast.loading('Импорт проекта...', { id: 'import' });
+      const res = await api.importJson(file);
+      toast.success('Проект успешно импортирован!', { id: 'import' });
+      navigate(`/project/${res.project_id}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка импорта', { id: 'import' });
+    }
+    
+    // reset input
+    e.target.value = '';
   };
 
   return (
@@ -127,15 +149,42 @@ function ProjectList() {
           {projects.length === 0 && <div style={{ color: 'var(--text-muted)' }}>Нет доступных проектов</div>}
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleCreateProject} className="btn btn-primary" style={{ flex: 1, padding: '1rem' }}>
+          <button onClick={() => { setNewProjectName(''); setNewProjectDesc(''); setShowProjectModal(true); }} className="btn btn-primary" style={{ flex: 1, padding: '1rem' }}>
             + Создать проект
           </button>
+          
+          <label className="btn btn-secondary" style={{ flex: 1, padding: '1rem', cursor: 'pointer', textAlign: 'center', margin: 0 }}>
+            <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileUpload} />
+            Загрузить JSON
+          </label>
+
           <button onClick={handleLoadDemo} className="btn btn-secondary" style={{ flex: 1, padding: '1rem' }}>
-            <Zap size={18} /> Демо-данные
+            <Zap size={18} style={{ display: 'inline', marginRight: 5, verticalAlign: 'middle' }} /> Демо-данные
           </button>
         </div>
       </div>
+
+      {showProjectModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-card" style={{ width: 400, textAlign: 'left' }}>
+            <h3 style={{marginBottom: '1rem'}}>Новый проект</h3>
+            <form onSubmit={handleCreateProjectSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{display: 'block', marginBottom: 5}}>Название проекта *</label>
+                <input required type="text" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} style={{width: '100%', padding: 8, borderRadius: 4, border: '1px solid #444', background: '#222', color: 'white'}} />
+              </div>
+              <div>
+                <label style={{display: 'block', marginBottom: 5}}>Описание</label>
+                <textarea rows={3} value={newProjectDesc} onChange={e => setNewProjectDesc(e.target.value)} style={{width: '100%', padding: 8, borderRadius: 4, border: '1px solid #444', background: '#222', color: 'white'}} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setShowProjectModal(false)} className="btn-secondary">Отмена</button>
+                <button type="submit" className="btn-primary">Создать</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

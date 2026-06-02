@@ -1,39 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
 from app.core.database import get_db
-from app.models import all as models
 from app.schemas import all as schemas
+from app.services import artifact_service
 
 router = APIRouter(prefix="/projects/{project_id}/artifacts", tags=["artifacts"])
 
 @router.get("/", response_model=List[schemas.ArtifactResponse])
 def get_project_artifacts(project_id: str, db: Session = Depends(get_db)):
-    artifacts = db.query(models.Artifact).filter(models.Artifact.project_id == project_id).all()
-    return artifacts
+    return artifact_service.get_project_artifacts(db, project_id)
 
 @router.post("/", response_model=schemas.ArtifactResponse)
 def create_project_artifact(project_id: str, artifact: schemas.ArtifactCreate, db: Session = Depends(get_db)):
-    db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not db_project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Validate type_id
-    type_exists = db.query(models.ArtifactType).filter(models.ArtifactType.code == artifact.type_id).first()
-    if not type_exists:
-        raise HTTPException(status_code=400, detail="Invalid artifact type_id")
-
-    # Validate unique code
-    code_exists = db.query(models.Artifact).filter(
-        models.Artifact.project_id == project_id, 
-        models.Artifact.code == artifact.code
-    ).first()
-    if code_exists:
-        raise HTTPException(status_code=400, detail="Artifact with this code already exists in the project")
-        
-    db_artifact = models.Artifact(**artifact.model_dump(), project_id=project_id)
-    db.add(db_artifact)
-    db.commit()
-    db.refresh(db_artifact)
-    return db_artifact
+    return artifact_service.create_project_artifact(db, project_id, artifact)

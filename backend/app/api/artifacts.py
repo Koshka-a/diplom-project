@@ -5,57 +5,22 @@ from typing import List
 from app.core.database import get_db
 from app.models import all as models
 from app.schemas import all as schemas
+from app.services import artifact_service
+from app.services.changelog_service import log_change
 
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 @router.get("/{artifact_id}", response_model=schemas.ArtifactResponse)
 def get_artifact(artifact_id: str, db: Session = Depends(get_db)):
-    db_artifact = db.query(models.Artifact).filter(models.Artifact.id == artifact_id).first()
-    if not db_artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-    return db_artifact
+    return artifact_service.get_artifact(db, artifact_id)
 
 @router.patch("/{artifact_id}", response_model=schemas.ArtifactResponse)
 def update_artifact(artifact_id: str, artifact: schemas.ArtifactUpdate, db: Session = Depends(get_db)):
-    db_artifact = db.query(models.Artifact).filter(models.Artifact.id == artifact_id).first()
-    if not db_artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-    
-    if artifact.type_id is not None:
-        type_exists = db.query(models.ArtifactType).filter(models.ArtifactType.code == artifact.type_id).first()
-        if not type_exists:
-            raise HTTPException(status_code=400, detail="Invalid artifact type_id")
-
-    if artifact.code is not None and artifact.code != db_artifact.code:
-        code_exists = db.query(models.Artifact).filter(
-            models.Artifact.project_id == db_artifact.project_id, 
-            models.Artifact.code == artifact.code
-        ).first()
-        if code_exists:
-            raise HTTPException(status_code=400, detail="Artifact with this code already exists in the project")
-            
-    update_data = artifact.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_artifact, key, value)
-    
-    db.commit()
-    db.refresh(db_artifact)
-    return db_artifact
+    return artifact_service.update_artifact(db, artifact_id, artifact)
 
 @router.delete("/{artifact_id}")
 def delete_artifact(artifact_id: str, db: Session = Depends(get_db)):
-    db_artifact = db.query(models.Artifact).filter(models.Artifact.id == artifact_id).first()
-    if not db_artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
-    # Delete relations
-    db.query(models.ArtifactRelation).filter(
-        (models.ArtifactRelation.source_artifact_id == artifact_id) | 
-        (models.ArtifactRelation.target_artifact_id == artifact_id)
-    ).delete(synchronize_session=False)
-
-    db.delete(db_artifact)
-    db.commit()
-    return {"message": "Artifact deleted"}
+    return artifact_service.delete_artifact(db, artifact_id)
 
 @router.get("/{artifact_id}/code", response_model=List[schemas.CodeFragmentResponse])
 def get_code_fragments(artifact_id: str, db: Session = Depends(get_db)):
@@ -64,21 +29,23 @@ def get_code_fragments(artifact_id: str, db: Session = Depends(get_db)):
 
 @router.post("/{artifact_id}/code", response_model=schemas.CodeFragmentResponse)
 def create_or_update_code_fragment(artifact_id: str, fragment: schemas.CodeFragmentUpdate, db: Session = Depends(get_db)):
-    db_artifact = db.query(models.Artifact).filter(models.Artifact.id == artifact_id).first()
-    if not db_artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+    db_artifact = artifact_service.get_artifact(db, artifact_id)
     
     db_fragment = db.query(models.CodeFragment).filter(models.CodeFragment.artifact_id == artifact_id).first()
     
     if db_fragment:
         update_data = fragment.model_dump(exclude_unset=True)
+        old_state = {k: getattr(db_fragment, k) for k in update_data.keys()}
         for key, value in update_data.items():
             setattr(db_fragment, key, value)
+        log_change(db, db_artifact.project_id, "CodeFragment", db_fragment.id, "UPDATE", old_state, update_data)
     else:
         create_data = fragment.model_dump()
         create_data["artifact_id"] = artifact_id
         db_fragment = models.CodeFragment(**create_data)
         db.add(db_fragment)
+        db.commit()
+        log_change(db, db_artifact.project_id, "CodeFragment", db_fragment.id, "CREATE", None, create_data)
         
     db.commit()
     db.refresh(db_fragment)

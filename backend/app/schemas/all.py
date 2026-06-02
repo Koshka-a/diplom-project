@@ -143,7 +143,7 @@ class ImpactItem(BaseModel):
     artifact: ImpactItemArtifact
     depth: int
     score: float
-    path: List[str]
+    path: str
 
 class ImpactResponse(BaseModel):
     source: Dict[str, str]

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactFlow, { 
   MiniMap, 
   Controls, 
@@ -12,7 +12,17 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { api } from '../api/client';
-import { Network } from 'lucide-react';
+import { Network, Filter } from 'lucide-react';
+
+const typeColors: Record<string, string> = {
+  Requirement: '#3b82f6', // blue
+  Module: '#10b981', // green
+  DomainConcept: '#8b5cf6', // purple
+  TestCase: '#eab308', // yellow
+  Document: '#0ea5e9', // cyan
+  Defect: '#ef4444', // red
+  Decision: '#f97316' // orange
+};
 
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -50,49 +60,80 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
 export default function GraphPage() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const highlightCode = searchParams.get('highlight');
+  
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [allTypes, setAllTypes] = useState<string[]>([]);
+  const [rawData, setRawData] = useState<{nodes: any[], edges: any[]} | null>(null);
+
+  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+    navigate(`/project/${projectId}/artifact/${node.id}`);
+  }, [navigate, projectId]);
 
   const loadGraph = useCallback(() => {
     if (!projectId) return;
     setLoading(true);
     api.getProjectGraph(projectId).then((data) => {
-      // Setup reactflow nodes
-      const rfNodes = data.nodes.map(n => ({
+      setRawData(data);
+      
+      const types = Array.from(new Set(data.nodes.map((n:any) => n.data.type))) as string[];
+      setAllTypes(types);
+      setFilterTypes(types); // show all by default
+      setLoading(false);
+    }).catch(console.error);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!rawData) return;
+    
+    const filteredNodes = rawData.nodes.filter((n:any) => filterTypes.includes(n.data.type));
+    const filteredNodeIds = new Set(filteredNodes.map((n:any) => n.id));
+    const filteredEdges = rawData.edges.filter((e:any) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target));
+
+    const rfNodes = filteredNodes.map((n:any) => {
+      const isHighlighted = highlightCode && n.data.label.startsWith(highlightCode);
+      const bgColor = typeColors[n.data.type] || 'var(--bg-secondary)';
+      
+      return {
         id: n.id,
-        position: { x: 0, y: 0 }, // will be calculated by dagre
+        position: { x: 0, y: 0 },
         data: { label: n.data.label },
         style: { 
-          background: 'var(--bg-secondary)', 
-          color: 'var(--text-primary)', 
-          border: '1px solid var(--border-color)',
+          background: isHighlighted ? 'var(--highlight-bg)' : bgColor,
+          color: '#fff', 
+          border: isHighlighted ? '3px solid var(--primary)' : '1px solid rgba(255,255,255,0.2)',
           borderRadius: '8px',
           padding: '10px',
           width: nodeWidth,
           textAlign: 'center' as const,
-          boxShadow: 'var(--shadow-sm)',
-          fontSize: '12px'
+          boxShadow: isHighlighted ? '0 0 15px var(--primary)' : 'var(--shadow-sm)',
+          fontSize: '12px',
+          fontWeight: isHighlighted ? 'bold' : 'normal'
         }
-      }));
+      };
+    });
 
-      const rfEdges = data.edges.map(e => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        label: e.label,
-        type: e.type, // 'smoothstep' etc
-        markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-secondary)' },
-        style: { stroke: 'var(--text-secondary)' }
-      }));
+    const rfEdges = filteredEdges.map((e:any) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: e.label,
+      type: e.type,
+      markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-secondary)' },
+      style: { stroke: 'var(--text-secondary)' }
+    }));
 
-      // Apply dagre layout
-      const layouted = getLayoutedElements(rfNodes, rfEdges, 'TB');
-      setNodes([...layouted.nodes]);
-      setEdges([...layouted.edges]);
-      setLoading(false);
-    }).catch(console.error);
-  }, [projectId]);
+    const layouted = getLayoutedElements(rfNodes, rfEdges, 'TB');
+    setNodes([...layouted.nodes]);
+    setEdges([...layouted.edges]);
+  }, [rawData, filterTypes, highlightCode, setNodes, setEdges]);
 
   useEffect(() => {
     loadGraph();
@@ -109,13 +150,31 @@ export default function GraphPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2>Онтология проекта</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => onLayout('TB')} className="btn-outline">
-            <Network size={16} /> Сверху вниз
+          <button onClick={() => onLayout('TB')} className="btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+            <Network size={14} /> Сверху вниз
           </button>
-          <button onClick={() => onLayout('LR')} className="btn-outline">
-            <Network size={16} /> Слева направо
+          <button onClick={() => onLayout('LR')} className="btn-outline" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+            <Network size={14} /> Слева направо
           </button>
         </div>
+      </div>
+
+      <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <Filter size={16} color="var(--text-secondary)" />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Фильтры типов:</span>
+        {allTypes.map(type => (
+          <label key={type} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer', background: typeColors[type] || 'var(--bg-secondary)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#fff' }}>
+            <input 
+              type="checkbox" 
+              checked={filterTypes.includes(type)}
+              onChange={(e) => {
+                if (e.target.checked) setFilterTypes(prev => [...prev, type]);
+                else setFilterTypes(prev => prev.filter(t => t !== type));
+              }}
+            />
+            {type}
+          </label>
+        ))}
       </div>
       
       {loading ? (
@@ -129,6 +188,7 @@ export default function GraphPage() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
             fitView
             attributionPosition="bottom-right"
             minZoom={0.2}

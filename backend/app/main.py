@@ -1,29 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 from app.core.init_db import init_db
 from app.core.database import Base, engine, SessionLocal
+from app.core.config import settings
 from app.models import all as models
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: create tables and init db
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    init_db(db)
+    db.close()
+    yield
+    # Shutdown
 
-# Initialize reference data
-db = SessionLocal()
-init_db(db)
-db.close()
-
-app = FastAPI(title="Workplace Lifecycle API")
+app = FastAPI(title="Workplace Lifecycle API", lifespan=lifespan)
 
 # Configure CORS
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

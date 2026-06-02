@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models import all as models
 from app.schemas import all as schemas
+from app.services.changelog_service import log_change
 
 def check_cycles(db: Session, project_id: str, source_id: str, target_id: str, relation_type_code: str):
     if relation_type_code not in ["part_of", "is_a"]:
@@ -46,6 +47,12 @@ def create_relation(db: Session, project_id: str, relation: schemas.RelationCrea
     if source.id == target.id:
         raise HTTPException(status_code=400, detail="Связь с самим собой запрещена")
 
+    if rel_type.source_types_json and source.type_id not in rel_type.source_types_json:
+        raise HTTPException(status_code=400, detail=f"Тип связи {rel_type.code} не поддерживает источник типа {source.type_id}")
+    
+    if rel_type.target_types_json and target.type_id not in rel_type.target_types_json:
+        raise HTTPException(status_code=400, detail=f"Тип связи {rel_type.code} не поддерживает цель типа {target.type_id}")
+
     # Check for exact duplicate
     duplicate = db.query(models.ArtifactRelation).filter(
         models.ArtifactRelation.project_id == project_id,
@@ -65,4 +72,5 @@ def create_relation(db: Session, project_id: str, relation: schemas.RelationCrea
     db.add(db_relation)
     db.commit()
     db.refresh(db_relation)
+    log_change(db, project_id, "Relation", db_relation.id, "CREATE", None, {"source": source.code, "target": target.code, "type": rel_type.code})
     return db_relation

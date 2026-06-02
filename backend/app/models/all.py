@@ -36,8 +36,8 @@ class Artifact(Base):
     __table_args__ = (UniqueConstraint('project_id', 'code', name='uix_project_code'),)
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
-    type_id = Column(String, ForeignKey("artifact_types.code"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    type_id = Column(String, ForeignKey("artifact_types.code", ondelete="CASCADE"), nullable=False)
     code = Column(String, nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -68,10 +68,10 @@ class ArtifactRelation(Base):
     __tablename__ = "artifact_relations"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
-    source_artifact_id = Column(String, ForeignKey("artifacts.id"), nullable=False)
-    target_artifact_id = Column(String, ForeignKey("artifacts.id"), nullable=False)
-    relation_type_id = Column(String, ForeignKey("relation_types.code"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    source_artifact_id = Column(String, ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False)
+    target_artifact_id = Column(String, ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False)
+    relation_type_id = Column(String, ForeignKey("relation_types.code", ondelete="CASCADE"), nullable=False)
     label = Column(String, nullable=True)
     weight = Column(Float, default=1.0)
     comment = Column(Text, nullable=True)
@@ -86,7 +86,7 @@ class CodeFragment(Base):
     __tablename__ = "code_fragments"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    artifact_id = Column(String, ForeignKey("artifacts.id"), nullable=False)
+    artifact_id = Column(String, ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False)
     language = Column(String, nullable=True)
     file_path = Column(String, nullable=True)
     content = Column(Text, nullable=False)
@@ -101,7 +101,7 @@ class ChangeLog(Base):
     __tablename__ = "change_log"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     entity_type = Column(String, nullable=False)
     entity_id = Column(String, nullable=False)
     operation = Column(String, nullable=False)
@@ -113,7 +113,7 @@ class ExportRecord(Base):
     __tablename__ = "export_records"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    project_id = Column(String, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     format = Column(String, nullable=False)
     file_name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

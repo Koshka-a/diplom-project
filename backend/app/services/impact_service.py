@@ -9,9 +9,14 @@ def analyze_impact(db: Session, project_id: str, request: schemas.ImpactRequest)
     if not source_artifact:
         raise HTTPException(status_code=404, detail="Source artifact not found")
 
-    relations_query = db.query(models.ArtifactRelation).filter(models.ArtifactRelation.project_id == project_id)
+    relations_query = db.query(models.ArtifactRelation).join(
+        models.RelationType, models.ArtifactRelation.relation_type_id == models.RelationType.code
+    ).filter(models.ArtifactRelation.project_id == project_id)
+    
     if request.include_relation_types:
         relations_query = relations_query.filter(models.ArtifactRelation.relation_type_id.in_(request.include_relation_types))
+    else:
+        relations_query = relations_query.filter(models.RelationType.affects_impact == True)
     
     relations = relations_query.all()
     
@@ -22,16 +27,18 @@ def analyze_impact(db: Session, project_id: str, request: schemas.ImpactRequest)
             graph[rel.source_artifact_id].append({
                 "target": rel.target_artifact_id,
                 "type": rel.relation_type_id,
-                "weight": rel.weight or 1.0
+                "weight": rel.weight or 1.0,
+                "dir": "forward"
             })
         if request.direction in ["backward", "both"]:
             graph[rel.target_artifact_id].append({
                 "target": rel.source_artifact_id,
                 "type": rel.relation_type_id,
-                "weight": rel.weight or 1.0
+                "weight": rel.weight or 1.0,
+                "dir": "backward"
             })
 
-    queue = [(source_artifact.id, 0, [])]
+    queue = [(source_artifact.id, 0, source_artifact.code)]
     visited = {source_artifact.id}
     result = []
     
@@ -50,13 +57,15 @@ def analyze_impact(db: Session, project_id: str, request: schemas.ImpactRequest)
                 continue
                 
             visited.add(next_id)
-            next_path = path + [edge["type"]]
             
             # score = max(0.2, 1 - 0.25 * depth) * relation_weight
             score = max(0.2, 1 - 0.25 * (depth + 1)) * edge["weight"]
             
             target_artifact = all_artifacts.get(next_id)
             if target_artifact:
+                arrow = f" --[{edge['type']}]--> " if edge.get("dir") == "forward" else f" <--[{edge['type']}]-- "
+                next_path = path + arrow + target_artifact.code
+                
                 result.append({
                     "artifact": {
                         "code": target_artifact.code,
@@ -65,7 +74,7 @@ def analyze_impact(db: Session, project_id: str, request: schemas.ImpactRequest)
                     },
                     "depth": depth + 1,
                     "score": round(score, 2),
-                    "path": [source_artifact.code] + next_path + [target_artifact.code]
+                    "path": next_path
                 })
                 
                 queue.append((next_id, depth + 1, next_path))

@@ -104,4 +104,12 @@ export const api = {
   // Export
   exportJsonUrl: (projectId: string) => `${API_URL}/projects/${projectId}/export/json`,
   exportTurtleUrl: (projectId: string) => `${API_URL}/projects/${projectId}/export/turtle`,
+  importJson: async (file: File): Promise<{message: string, project_id: string}> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await client.post('/projects/import/json', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
 };
