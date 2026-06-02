@@ -1,13 +1,14 @@
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Database, Network, Zap, Menu } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
+import { LayoutDashboard, Database, Network, Zap, Menu, History } from 'lucide-react';
+import { Toaster, toast } from 'react-hot-toast';
 import { api } from './api/client';
 import DashboardPage from './pages/DashboardPage';
 import ArtifactsPage from './pages/ArtifactsPage';
 import GraphPage from './pages/GraphPage';
 import ImpactPage from './pages/ImpactPage';
 import ArtifactCardPage from './pages/ArtifactCardPage';
+import ChangelogPage from './pages/ChangelogPage';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { projectId } = useParams();
@@ -56,6 +57,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <Link to={`/project/${projectId}/impact`} className="nav-item">
             <Zap size={20} />
             Анализ влияния
+          </Link>
+          <Link to={`/project/${projectId}/changelog`} className="nav-item">
+            <History size={20} />
+            Журнал
           </Link>
         </nav>
       </aside>
@@ -149,6 +154,8 @@ function ProjectList() {
           {projects.length === 0 && <div style={{ color: 'var(--text-muted)' }}>Нет доступных проектов</div>}
         </div>
 
+        <div style={{ display: 'flex', gap: '10px' }}>
+
           <button onClick={() => { setNewProjectName(''); setNewProjectDesc(''); setShowProjectModal(true); }} className="btn btn-primary" style={{ flex: 1, padding: '1rem' }}>
             + Создать проект
           </button>
@@ -201,6 +208,7 @@ export default function App() {
           <Route path="/project/:projectId/artifact/:artifactId" element={<AppLayout><ArtifactCardPage /></AppLayout>} />
           <Route path="/project/:projectId/graph" element={<AppLayout><GraphPage /></AppLayout>} />
           <Route path="/project/:projectId/impact" element={<AppLayout><ImpactPage /></AppLayout>} />
+          <Route path="/project/:projectId/changelog" element={<AppLayout><ChangelogPage /></AppLayout>} />
         </Routes>
       </Router>
     </>

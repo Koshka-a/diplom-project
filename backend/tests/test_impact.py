@@ -66,3 +66,42 @@ def test_load_demo_and_impact():
     assert "ENT-001" in impacted_codes
     assert "MOD-001" in impacted_codes
     assert "TEST-001" in impacted_codes
+
+def test_artifact_deletion_cascade():
+    # Load demo data
+    response = client.post("/demo/load")
+    assert response.status_code == 200
+    project_id = response.json()["project_id"]
+
+    # Get REQ-001
+    artifacts_resp = client.get(f"/projects/{project_id}/artifacts/")
+    artifacts = artifacts_resp.json()
+    req_001 = next(a for a in artifacts if a["code"] == "REQ-001")
+    
+    # Get all relations before delete
+    rels_resp = client.get(f"/projects/{project_id}/relations")
+    rels_before = rels_resp.json()
+    req_rels_before = [r for r in rels_before if r["source_artifact_id"] == req_001["id"] or r["target_artifact_id"] == req_001["id"]]
+    assert len(req_rels_before) > 0, "REQ-001 should have relations"
+
+    # Delete REQ-001
+    del_resp = client.delete(f"/artifacts/{req_001['id']}")
+    assert del_resp.status_code == 200
+
+    # Get all relations after delete
+    rels_resp2 = client.get(f"/projects/{project_id}/relations")
+    rels_after = rels_resp2.json()
+    req_rels_after = [r for r in rels_after if r["source_artifact_id"] == req_001["id"] or r["target_artifact_id"] == req_001["id"]]
+    assert len(req_rels_after) == 0, "All relations to/from REQ-001 must be deleted"
+    
+    # Verify impact analysis doesn't fail if we analyze another node that used to connect to REQ-001
+    # MOD-001 realizes REQ-001, so let's impact analyze MOD-001
+    mod_001 = next(a for a in artifacts if a["code"] == "MOD-001")
+    impact_resp = client.post(f"/projects/{project_id}/impact/", json={
+        "artifact_id": mod_001["id"],
+        "direction": "both",
+        "max_depth": 3
+    })
+    assert impact_resp.status_code == 200
+    impacted_codes = [item["artifact"]["code"] for item in impact_resp.json()["items"]]
+    assert "REQ-001" not in impacted_codes, "Deleted artifact should not appear in impact"

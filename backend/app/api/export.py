@@ -9,6 +9,7 @@ from datetime import datetime
 from app.core.database import get_db
 from app.models import all as models
 from app.services import project_service, artifact_service
+from app.services.changelog_service import log_change
 import json
 
 router = APIRouter(prefix="/projects", tags=["export"])
@@ -147,4 +148,8 @@ def import_json(file: UploadFile = File(...), db: Session = Depends(get_db)):
             db.add(db_r)
     
     db.commit()
+    
+    # Логируем сам факт импорта
+    log_change(db, db_proj.id, "Project", db_proj.id, "IMPORT", None, {"name": db_proj.name, "artifacts_count": len(data.get("artifacts", []))})
+    
     return {"message": "Project imported successfully", "project_id": db_proj.id}

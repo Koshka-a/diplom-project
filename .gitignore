@@ -165,3 +165,9 @@ frontend/*.local
 # --- Operating System ---
 .DS_Store
 Thumbs.db
+
+# --- PDF files (TZ, checklists, etc.) ---
+*.pdf
+ТЗ.pdf
+diplom_mvp_full_checklist.pdf
+

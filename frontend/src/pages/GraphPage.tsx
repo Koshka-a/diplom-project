@@ -73,7 +73,7 @@ export default function GraphPage() {
   const [allTypes, setAllTypes] = useState<string[]>([]);
   const [rawData, setRawData] = useState<{nodes: any[], edges: any[]} | null>(null);
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
     navigate(`/project/${projectId}/artifact/${node.id}`);
   }, [navigate, projectId]);
 

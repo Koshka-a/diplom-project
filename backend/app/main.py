@@ -33,7 +33,7 @@ def read_root():
     return {"message": "Welcome to Workplace Lifecycle API"}
 
 # Include routers here
-from app.api import projects, artifacts, project_artifacts, relations, graph, impact, export, demo
+from app.api import projects, artifacts, project_artifacts, relations, graph, impact, export, demo, changelog
 
 app.include_router(projects.router)
 app.include_router(artifacts.router)
@@ -42,5 +42,6 @@ app.include_router(relations.router)
 app.include_router(graph.router)
 app.include_router(impact.router)
 app.include_router(export.router)
+app.include_router(changelog.router)
 app.include_router(demo.router)
 

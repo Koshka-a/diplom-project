@@ -112,4 +112,10 @@ export const api = {
     });
     return res.data;
   },
+
+  // Changelog
+  getChangelog: async (projectId: string, params?: { entity_type?: string, operation?: string }) => {
+    const res = await client.get(`/projects/${projectId}/changelog`, { params });
+    return res.data;
+  },
 };

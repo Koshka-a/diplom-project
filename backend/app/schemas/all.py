@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -148,3 +148,15 @@ class ImpactItem(BaseModel):
 class ImpactResponse(BaseModel):
     source: Dict[str, str]
     items: List[ImpactItem]
+
+class ChangeLogResponse(BaseModel):
+    id: str
+    project_id: str
+    entity_type: str
+    entity_id: str
+    operation: str
+    old_value_json: Optional[Dict[str, Any]] = None
+    new_value_json: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

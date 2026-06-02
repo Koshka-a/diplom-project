@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from app.models import all as models
 from app.schemas import all as schemas
 from app.services.changelog_service import log_change
+from sqlalchemy import or_
 
 def get_project_artifacts(db: Session, project_id: str):
     return db.query(models.Artifact).filter(models.Artifact.project_id == project_id).all()
@@ -66,7 +67,24 @@ def delete_artifact(db: Session, artifact_id: str):
     db_artifact = get_artifact(db, artifact_id)
     project_id = db_artifact.project_id
     code = db_artifact.code
+    
+    # Явное удаление связей (чтобы не полагаться только на SQLite CASCADE, который требует PRAGMA foreign_keys=ON)
+    relations_to_delete = db.query(models.ArtifactRelation).filter(
+        or_(
+            models.ArtifactRelation.source_artifact_id == artifact_id,
+            models.ArtifactRelation.target_artifact_id == artifact_id
+        )
+    ).all()
+    
+    for rel in relations_to_delete:
+        rel_id = rel.id
+        rel_type = rel.relation_type_id
+        db.delete(rel)
+        # Логируем удаление связи, чтобы история была полной
+        log_change(db, project_id, "Relation", rel_id, "DELETE", {"type": rel_type}, None)
+        
     db.delete(db_artifact)
     db.commit()
+    
     log_change(db, project_id, "Artifact", artifact_id, "DELETE", {"code": code}, None)
     return {"message": "Artifact deleted"}
